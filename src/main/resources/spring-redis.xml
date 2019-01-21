@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:cache="http://www.springframework.org/schema/cache"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans.xsd
+                        http://www.springframework.org/schema/context
+                        http://www.springframework.org/schema/context/spring-context.xsd
+                        http://www.springframework.org/schema/aop
+                        http://www.springframework.org/schema/aop/spring-aop.xsd
+                        http://www.springframework.org/schema/tx
+                        http://www.springframework.org/schema/tx/spring-tx.xsd
+                        http://www.springframework.org/schema/mvc
+                        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+                        http://www.springframework.org/schema/cache
+                        http://www.springframework.org/schema/cache/spring-cache.xsd"
+       default-autowire="byName">
+    <!-- 配置JedisConnectionFactory -->
+    <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+        <property name="hostName" value="redis.yhj.3g"/>
+        <property name="port" value="6379"/>
+        <property name="password" value="yhj1q@W"/>
+        <property name="database" value="0"/>
+        <property name="poolConfig" ref="jedisPoolConfig"/>
+        <!-- <constructor-arg name="sentinelConfig" ref="redisSentinelConfiguration" /> -->
+        <constructor-arg name="poolConfig" ref="jedisPoolConfig" />
+    </bean>
+
+    <!-- 配置 JedisPoolConfig 实例 -->
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <!-- 最大连接数 -->
+        <property name="maxTotal" value="20"/>
+        <!-- 最大空闲时间 -->
+        <property name="maxIdle" value="5"/>
+        <!-- 最小空闲时间 -->
+        <property name="minIdle" value="5000"/>
+        <!-- 获得链接时的最大等待毫秒数，小于0：阻塞不确定时间，默认-1 -->
+        <property name="maxWaitMillis" value="5000"/>
+        <!-- 在borrow一个jedis实例时，是否提前进行validate操作；如果为true，则得到的jedis实例均是可用的 -->
+        <property name="testOnBorrow" value="true"/>
+        <!-- 在空闲时检查有效性，默认false -->
+        <property name="testWhileIdle" value="true"/>
+        <!-- 表示idle object evitor两次扫描之间要sleep的毫秒数 -->
+        <!--<property name="timeBetweenEvictionRunsMillis" value="3000" />-->
+        <!-- 表示一个对象至少停留在idle状态的最短时间，然后才能被idle object evitor扫描并驱逐；这一项只有在timeBetweenEvictionRunsMillis大于0时才有意义 -->
+        <!--<property name="minEvictableIdleTimeMillis" value="3000" />-->
+        <!-- 表示idle object evitor每次扫描的最多的对象数 -->
+        <!--<property name="numTestsPerEvictionRun" value="50" />-->
+    </bean>
+
+
+    <!-- redis 序列化策略 ，通常情况下key值采用String序列化策略， -->
+    <!-- 如果不指定序列化策略，StringRedisTemplate的key和value都将采用String序列化策略； -->
+    <!-- 但是RedisTemplate的key和value都将采用JDK序列化 这样就会出现采用不同template保存的数据不能用同一个template删除的问题 -->
+    <!-- 配置RedisTemplate -->
+    <bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+        <property name="connectionFactory" ref="jedisConnectionFactory" />
+        <property name="keySerializer">
+            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+        </property>
+        <!-- <property name="valueSerializer" ref="stringRedisSerializer" /> value值如果是对象，这不能用stringRedisSerializer，报类型转换错误-->
+        <!-- <property name="valueSerializer">
+            hex（十六进制）的格式
+            <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer" />
+        </property> -->
+        <property name="valueSerializer" >
+            <!-- json的格式，要注意实体属性名有没有‘_’,如user_name,有的话要加注解 ，@JsonNaming会将userName处理为user_name
+                   @JsonSerialize
+                @JsonNaming(PropertyNamingStrategy.LowerCaseWithUnderscoresStrategy.class)
+               -->
+            <bean class="org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer" />
+        </property>
+    </bean>
+
+
+    <!-- 配置redis发布订阅模式 -->
+    <bean id="redisMessageListenerContainer" class="org.springframework.data.redis.listener.RedisMessageListenerContainer">
+        <property name="connectionFactory" ref="jedisConnectionFactory" />
+        <property name="messageListeners">
+            <map>
+                <entry key-ref="redisMsgPubSubListener">
+                    <!--模式订阅，支持模糊匹配-->
+                    <bean class="org.springframework.data.redis.listener.PatternTopic">
+                        <constructor-arg value="redis.*" />
+                    </bean>
+                </entry>
+            </map>
+        </property>
+    </bean>
+
+
+    <bean id="messageListenerAdapter" class="org.springframework.data.redis.listener.adapter.MessageListenerAdapter">
+        <constructor-arg ref="redisMsgPubSubListener"></constructor-arg>
+    </bean>
+
+    <bean id="redisMsgPubSubListener" class="com.iths.redis.listener.RedisMsgPubSubListener"></bean>
+
+</beans>
