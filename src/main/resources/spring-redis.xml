@@ -57,21 +57,21 @@
     <!-- 配置RedisTemplate -->
     <bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
         <property name="connectionFactory" ref="jedisConnectionFactory" />
-        <property name="keySerializer">
-            <bean class="org.springframework.data.redis.serializer.StringRedisSerializer" />
-        </property>
+        <!--<property name="keySerializer">-->
+            <!--<bean class="org.springframework.data.redis.serializer.StringRedisSerializer" />-->
+        <!--</property>-->
         <!-- <property name="valueSerializer" ref="stringRedisSerializer" /> value值如果是对象，这不能用stringRedisSerializer，报类型转换错误-->
         <!-- <property name="valueSerializer">
             hex（十六进制）的格式
             <bean class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer" />
         </property> -->
-        <property name="valueSerializer" >
+        <!--<property name="valueSerializer" >-->
             <!-- json的格式，要注意实体属性名有没有‘_’,如user_name,有的话要加注解 ，@JsonNaming会将userName处理为user_name
                    @JsonSerialize
                 @JsonNaming(PropertyNamingStrategy.LowerCaseWithUnderscoresStrategy.class)
                -->
-            <bean class="org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer" />
-        </property>
+            <!--<bean class="org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer" />-->
+        <!--</property>-->
     </bean>
 
 
@@ -92,9 +92,14 @@
 
 
     <bean id="messageListenerAdapter" class="org.springframework.data.redis.listener.adapter.MessageListenerAdapter">
-        <constructor-arg ref="redisMsgPubSubListener"></constructor-arg>
+        <constructor-arg ref="redisMsgPubSubListener"/>
     </bean>
 
-    <bean id="redisMsgPubSubListener" class="com.iths.redis.listener.RedisMsgPubSubListener"></bean>
+    <bean id="redisMsgPubSubListener" class="com.iths.redis.pubsub.MessageHandleListener"/>
+
+    <bean id="messagePublisher" class="com.iths.redis.pubsub.MessagePublisher">
+        <!--可以实现静态注入-->
+        <!--<property name="redisTemplate" ref="redisTemplate"/>-->
+    </bean>
 
 </beans>
