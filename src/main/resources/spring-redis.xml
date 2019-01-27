@@ -78,6 +78,7 @@
     <!-- 配置redis发布订阅模式 -->
     <bean id="redisMessageListenerContainer" class="org.springframework.data.redis.listener.RedisMessageListenerContainer">
         <property name="connectionFactory" ref="jedisConnectionFactory" />
+        <property name="taskExecutor" value="com.iths.redis.pubsub.ListenerTaskExecutor" />
         <property name="messageListeners">
             <map>
                 <entry key-ref="redisMsgPubSubListener">
