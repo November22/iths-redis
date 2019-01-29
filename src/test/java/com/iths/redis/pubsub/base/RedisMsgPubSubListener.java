@@ -1,4 +1,4 @@
-package com.iths.redis.base;
+package com.iths.redis.pubsub.base;
 
 import redis.clients.jedis.JedisPubSub;
 

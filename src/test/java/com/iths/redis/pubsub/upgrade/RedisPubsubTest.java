@@ -1,4 +1,4 @@
-package com.iths.redis.upgrade;
+package com.iths.redis.pubsub.upgrade;
 
 import com.iths.redis.pubsub.MessageHandleSubscriber;
 import com.iths.redis.pubsub.MessagePublisher;
