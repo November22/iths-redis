@@ -68,4 +68,30 @@ public interface Cache {
      */
     <T> T get(String key);
 
+
+    /**
+     * 使用默认的锁超时时间
+     * 不进行锁等
+     * @param lockKey
+     * @param lockCallback
+     */
+    void acquireLock(String lockKey,LockCallback lockCallback);
+
+    /**
+     * 使用默认锁超时时间
+     * @param lockKey
+     * @param lockCallback
+     * @param waitTime 指定锁等时间
+     */
+    void acquireLock(String lockKey,LockCallback lockCallback,Long waitTime);
+
+    /**
+     *
+     * @param lockKey
+     * @param lockCallback
+     * @param waitTime 等锁超时时间，不可为null
+     * @param lockExpireTime 获取锁后，锁超时时间，不可为null
+     */
+    void acquireLock(String lockKey,LockCallback lockCallback,Long waitTime,Long lockExpireTime);
+
 }

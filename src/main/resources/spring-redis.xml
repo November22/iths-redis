@@ -15,8 +15,7 @@
                         http://www.springframework.org/schema/mvc
                         http://www.springframework.org/schema/mvc/spring-mvc.xsd
                         http://www.springframework.org/schema/cache
-                        http://www.springframework.org/schema/cache/spring-cache.xsd"
-       default-autowire="byName">
+                        http://www.springframework.org/schema/cache/spring-cache.xsd">
     <!-- 配置JedisConnectionFactory -->
     <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
         <property name="hostName" value="redis.yhj.3g"/>

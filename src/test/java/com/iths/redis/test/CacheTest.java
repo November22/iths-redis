@@ -28,7 +28,7 @@ public class CacheTest  {
 
     @Test
     public void testPutExpire(){
-        cache.put("iths.redis.002",new UserInfo("三棵树",53),120);
+        cache.put("iths.redis.001",new UserInfo("三棵树",53),10*1000);
     }
 
     @Test
@@ -43,7 +43,7 @@ public class CacheTest  {
 
     @Test
     public void testGet(){
-        UserInfo info = cache.get("iths.redis.004");
+        UserInfo info = cache.get("iths.redis.001");
         System.out.println(info);
     }
 
@@ -65,5 +65,7 @@ public class CacheTest  {
     public void testTx2(){
         cache.put("iths.redis.004",new UserInfo("三棵树",29));
     }
+
+
 
 }
