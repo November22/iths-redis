@@ -14,7 +14,9 @@ import java.util.concurrent.Executors;
  * @author sen.huang
  * @date 2019/2/16.
  */
-public class LockTest implements Runnable {
+public class LockTest implements Runnable  {
+
+
 
     @Test
     public void testLock1() throws Exception {
