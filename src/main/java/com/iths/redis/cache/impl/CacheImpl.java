@@ -1,18 +1,23 @@
 package com.iths.redis.cache.impl;
 
+import com.iths.ThreadContext;
 import com.iths.redis.cache.Cache;
 import com.iths.redis.cache.Constant;
 import com.iths.redis.cache.LockCallback;
 import com.iths.redis.cache.LockHold;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisStringCommands;
+import org.springframework.data.redis.connection.jedis.JedisConverters;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
+import redis.clients.jedis.Jedis;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author sen.huang
@@ -155,55 +160,92 @@ public class CacheImpl implements Cache {
         this.acquireLock(lockKey,lockCallback,waitTime,Constant.REDIS_LOCK_DEFAULT_EXPIRE_TIME);
     }
 
-    public void acquireLock(final String lockKey, final LockCallback lockCallback, final Long waitTime, final Long lockExpireTime) {
+//    public void acquireLock(final String lockKey, final LockCallback lockCallback, final Long waitTime, final Long lockExpireTime) {
+//        redisTemplate.execute(new RedisCallback() {
+//            public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
+//                String realLockKey = getRealLockKey(lockKey);
+//                String releaseCode = getReleaseCode();
+//                String lockValue = getLockValue(lockKey);
+//                LockHold lockHold = new LockHold(releaseCode, lockValue);
+//                try {
+//                    byte[] keyBytes = keySerializer.serialize(realLockKey);
+//                    //以100毫秒为循环单位
+//                    long unit = waitTime/100 + (waitTime%100>0?1:0);
+//                    do{
+//                        unit--;
+//                        byte[] oldValBytes = redisConnection.get(keyBytes);
+//                        if(oldValBytes == null){
+//                            byte[] valueBytes = valueSerializer.serialize(lockHold);
+//                            //持有锁设置锁超时时间——需要设置事务，以免线程1先获取到值为null，在线程1在set值之前，另一个线程也也获取到null，然后set值，这样线程内代码执行了两次。
+//                            try {
+////                                @TODO 不能满足多线程要求，如果两个线程，同时进入这个try-catch，在执行watch(keyBytes)前失去时间片，另一个线程执行完成exec后，停止的线程获得时间片
+////                                redisConnection.watch(keyBytes);
+////                                redisConnection.multi();
+////                                redisConnection.pSetEx(keyBytes,lockExpireTime,valueBytes);
+////                                redisConnection.exec();
+//
+//                                //方式2
+//                                System.out.println("线程["+ThreadContext.getThreadLocal().get()+"].expire["+lockExpireTime+"]");
+//                                lockCallback.process();
+//                                return null;
+//                            } catch (Exception e) {
+//                                //@TODO 警告级别的日志
+//                                System.out.println("锁竞争异常");
+//                            }
+//                        }else{
+//                            LockHold oldLockHold = (LockHold)valueSerializer.deserialize(oldValBytes);
+//                            if(oldLockHold == null || !oldLockHold.getLockValue().equals(lockValue)){
+//                                throw new RuntimeException("lock.key["+lockKey+"] is lock.value.error,error data["+oldLockHold.getLockValue()+"]");
+//                            }
+//                        }
+//                        if(waitTime == 0L){
+//                            return null;
+//                        }
+//                        Thread.sleep(100L);
+//                    }while (unit>0);
+//                    System.out.println("线程["+ThreadContext.getThreadLocal().get()+"]锁等超时");
+//                } catch (Exception e) {
+//                    //@TODO 加上日志输出
+//                } finally {
+//                    release(realLockKey,releaseCode);
+//                }
+//                return null;
+//            }
+//        });
+//    }
+
+
+    public void acquireLock(final String lockKey,final LockCallback lockCallback,final Long waitTime,final Long lockExpireTime) {
         redisTemplate.execute(new RedisCallback() {
             public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
-                String realLockKey = getRealLockKey(lockKey);
-                String releaseCode = getReleaseCode();
-                String lockValue = getLockValue(lockKey);
-                LockHold lockHold = new LockHold(releaseCode, lockValue);
-                try {
-                    byte[] keyBytes = keySerializer.serialize(realLockKey);
-                    //以100毫秒为循环单位
-                    long unit = waitTime/100 + (waitTime%100>0?1:0);
-                    do{
-                        unit--;
-                        byte[] oldValBytes = redisConnection.get(keyBytes);
-                        if(oldValBytes == null){
-                            byte[] valueBytes = valueSerializer.serialize(lockHold);
-                            //持有锁设置锁超时时间——需要设置事务，以免线程1先获取到值为null，在线程1在set值之前，另一个线程也也获取到null，然后set值，这样线程内代码执行了两次。
-                            try {
-                                redisConnection.watch(keyBytes);
-                                redisConnection.multi();
-                                System.out.println("线程["+Thread.currentThread().getName()+"]到达");
-                                redisConnection.pSetEx(keyBytes,lockExpireTime,valueBytes);
-                                redisConnection.exec();
-                                System.out.println("线程["+Thread.currentThread().getName()+"]获得锁");
-                                lockCallback.process();
-                                return null;
-                            } catch (Exception e) {
-                                //@TODO 警告级别的日志
-                                System.out.println("线程["+Thread.currentThread().getName()+"]acquireLock:183,error"+e.getMessage());
-                            }
-                        }else{
-                            LockHold oldLockHold = (LockHold)valueSerializer.deserialize(oldValBytes);
-                            if(oldLockHold == null || !oldLockHold.getLockValue().equals(lockValue)){
-                                throw new RuntimeException("lock.key["+lockKey+"] is lock.value.error,error data["+oldLockHold.getLockValue()+"]");
-                            }
-                        }
-                        if(waitTime == 0L){
+                    Long timeoutCount = waitTime;
+                    while (timeoutCount > 0) {
+                        byte[] keyByte = keySerializer.serialize(lockKey);
+                        Jedis jedis = (Jedis) redisConnection.getNativeConnection();
+                        Expiration expiration = Expiration.from(lockExpireTime,TimeUnit.MILLISECONDS);
+                        byte[] expx = JedisConverters.toSetCommandExPxArgument(expiration);
+                        byte[] nxxx = JedisConverters.toSetCommandNxXxArgument(RedisStringCommands.SetOption.SET_IF_ABSENT);
+                        //得到锁——这个方法是原子性的
+                        //参数说明：1.用来当锁的key，2.key对应的value，3.set的操作方式（SET_IF_ABSENT，不存在的时候）  4.过期时间
+                        String reply = jedis.set(keyByte,valueSerializer.serialize(""),nxxx,expx,
+                                expiration.getExpirationTime());
+                        System.out.println(ThreadContext.getThreadLocal().get()+"reply["+reply+"]");
+                        if (reply != null) {
+                            lockCallback.process();
                             return null;
                         }
-                        System.out.println("cycle");
-                        Thread.sleep(100L);
-                    }while (unit>0);
-                } catch (Exception e) {
-                    //@TODO 加上日志输出
-                    throw new RuntimeException(e);
-                } finally {
-                    release(realLockKey,releaseCode);
-                }
-                return null;
+                        timeoutCount -= 100;
+                        if (timeoutCount <= 0){
+                            //锁等超时
+                            return null;
+                        }
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    return null;
             }
         });
     }
@@ -232,7 +274,7 @@ public class CacheImpl implements Cache {
                             redisConnection.multi();
                             redisConnection.del(realLockKeyBytes);
                             redisConnection.exec();
-                            System.out.println("线程["+Thread.currentThread().getName()+"]释放锁成功，code["+releaseCode+"]");
+                            System.out.println("线程["+ThreadContext.getThreadLocal().get()+"]释放锁成功，code["+releaseCode+"]");
                         } catch (Exception e) {
                             //@TODO 日志输出，在做释放的时候，其他线程获得锁
                             System.out.println(e.getMessage());

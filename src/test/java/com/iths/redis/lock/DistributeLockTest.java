@@ -1,5 +1,6 @@
 package com.iths.redis.lock;
 
+import com.iths.ThreadContext;
 import com.iths.redis.cache.Cache;
 import com.iths.redis.cache.LockCallback;
 import org.junit.Test;
@@ -16,6 +17,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import redis.clients.jedis.Jedis;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 
@@ -26,13 +29,25 @@ import java.util.concurrent.TimeUnit;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:spring-redis.xml"})
-public class DistributeLockTest {
+public class DistributeLockTest{
 
     @Autowired
     private Cache cache;
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    ThreadLocal threadLocal = new ThreadLocal();
+
+    @Test
+    public void testLock() throws InterruptedException {
+        int i = Runtime.getRuntime().availableProcessors();
+        ExecutorService service = Executors.newFixedThreadPool(2 * i + 1);
+        for(int j=0;j<50;j++){
+            service.execute(new LockTest(""+j+"","lock.test",3000L,60*1000L));
+        }
+        Thread.sleep(10*60*1000L);
+    }
 
     @Test
     public void testSet(){
@@ -79,10 +94,10 @@ public class DistributeLockTest {
     @Test
     public void getLock() throws Exception{
         String lockKey = "test.lock.key";
-        Thread lockThread1 = new Thread(new LockTest(lockKey,0L,5000L));
+        Thread lockThread1 = new Thread(new LockTest("",lockKey,0L,5000L));
         lockThread1.setName("LockThread1");
 
-        Thread lockThread2 = new Thread(new LockTest(lockKey,6000L,50*60*1000L));
+        Thread lockThread2 = new Thread(new LockTest("",lockKey,6000L,50*60*1000L));
         lockThread2.setName("LockThread2");
 
         lockThread1.start();
@@ -93,24 +108,28 @@ public class DistributeLockTest {
     }
 
     class LockTest implements Runnable{
+        private String tag;
         private String lockKey;
         private Long lockWaitTime;
         private Long lockExpireTime;
 
-        public LockTest(String lockKey,Long lockWaitTime, Long lockExpireTime) {
+        public LockTest(String tag,String lockKey,Long lockWaitTime, Long lockExpireTime) {
+            this.tag = tag;
             this.lockKey = lockKey;
             this.lockWaitTime = lockWaitTime;
             this.lockExpireTime = lockExpireTime;
         }
 
         public void run() {
-            System.out.println("线程["+Thread.currentThread().getName()+"],执行");
+            ThreadContext.getThreadLocal().set(tag);
             cache.acquireLock(lockKey, new LockCallback() {
                 public void process() {
                     try {
-                        System.out.println("线程["+Thread.currentThread().getName()+"],开始睡眠");
+                        long start = System.currentTimeMillis();
+                        System.out.println("线程["+tag+"]开始睡眠");
                         Thread.sleep(2000L);
-                        System.out.println("线程["+Thread.currentThread().getName()+"],睡眠结束");
+                        long end = System.currentTimeMillis();
+                        System.out.println("线程["+tag+"]睡眠结束,睡眠时间["+(end-start)+"]");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
