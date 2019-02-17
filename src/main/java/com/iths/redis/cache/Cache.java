@@ -68,6 +68,7 @@ public interface Cache {
      */
     <T> T get(String key);
 
+    public boolean acquire(String lockKey,Long waitTime,Long lockExpireTime);
 
     /**
      * 使用默认的锁超时时间

@@ -121,7 +121,6 @@ public class DistributeLockTest{
         }
 
         public void run() {
-            ThreadContext.getThreadLocal().set(tag);
             cache.acquireLock(lockKey, new LockCallback() {
                 public void process() {
                     try {
