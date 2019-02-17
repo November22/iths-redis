@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(locations = {"classpath:spring-redis.xml"})
-public class DistributeLockTest{
+public class RedisDistributeLockTest {
 
     @Autowired
     private Cache cache;
@@ -44,6 +44,7 @@ public class DistributeLockTest{
         int i = Runtime.getRuntime().availableProcessors();
         ExecutorService service = Executors.newFixedThreadPool(2 * i + 1);
         for(int j=0;j<50;j++){
+            ThreadContext.set("tag",i);
             service.execute(new LockTest(""+j+"","lock.test",3000L,60*1000L));
         }
         Thread.sleep(10*60*1000L);
@@ -121,6 +122,7 @@ public class DistributeLockTest{
         }
 
         public void run() {
+//            System.out.println(ThreadContext.get("tag"));
             cache.acquireLock(lockKey, new LockCallback() {
                 public void process() {
                     try {

@@ -16,7 +16,9 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import redis.clients.jedis.Jedis;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -158,7 +160,7 @@ public class CacheImpl implements Cache {
                 String realLockKey = getRealLockKey(lockKey);
                 String releaseCode = getReleaseCode();
                 //透传
-                ThreadContext.set(realLockKey,releaseCode);
+                ThreadContext.set(releaseCode);
                 Long timeoutCount = waitTime;
                 while (timeoutCount > 0) {
                     byte[] keyByte = keySerializer.serialize(realLockKey);
@@ -276,10 +278,6 @@ public class CacheImpl implements Cache {
         return ACQUIRE_PREFIX + key + ACQUIRE_KEY_SUFFIX;
     }
 
-    private String getLockValue(String value){
-       return ACQUIRE_PREFIX + value + ACQUIRE_VAL_SUFFIX;
-    }
-
     private String getReleaseCode(){
         return UUID.randomUUID().toString().replace("-","");
     }
@@ -296,6 +294,31 @@ public class CacheImpl implements Cache {
                 return null;
             }
         });
+    }
+
+
+   protected static class ThreadContext  {
+        //不同的ThreadLocal对同一个线程，管理不同的对象信息
+       //因为对ThreadLocal.ThreadLocalMap threadLocals = null; 存储的key是threadLocal实例
+        private static ThreadLocal<String> threadLocal;
+
+        static {
+            threadLocal = new ThreadLocal<String>();
+        }
+
+        private ThreadContext(){}
+
+        public static void set(String releaseCode){
+            threadLocal.set(releaseCode);
+        }
+
+        public static String get(String key){
+            return threadLocal.get();
+        }
+
+        public static void remove(String key){
+            threadLocal.remove();
+        }
     }
 
 }
