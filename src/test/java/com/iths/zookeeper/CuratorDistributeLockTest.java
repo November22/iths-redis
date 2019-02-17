@@ -42,7 +42,7 @@ public class CuratorDistributeLockTest implements Runnable  {
     public void run() {
         //客户端连接重试策略，参数1:睡眠时间单位，2.重试次数 3.最大睡眠时间
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(10,4,500);
-        CuratorFramework client = CuratorFrameworkFactory.newClient("127.0.0.1:2181", retryPolicy);
+        CuratorFramework client = CuratorFrameworkFactory.newClient("10.151.30.228:2181,10.151.31.22:2181,10.151.31.24:2181", retryPolicy);
         client.start();
         //创建分布式锁, 锁空间的根节点路径为/curator/lock
         try {
