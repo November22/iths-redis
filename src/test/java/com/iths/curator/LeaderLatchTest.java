@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 一旦启动， LeaderLatch会和其它使用相同【latch path（即znode path）】的其它LeaderLatch交涉，然后随机的选择其中一个作为leade
+ * 一旦启动， LeaderLatch会和其它使用相同【latch path（即znode path）】的其它LeaderLatch交涉，然后随机的选择其中一个作为leader
  * @author sen.huang
  * @date 2019/4/9.
  */
