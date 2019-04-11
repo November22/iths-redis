@@ -15,7 +15,7 @@ public class LeaderSelectorExample {
 
     private static final String PATH = "/examples/leader";
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         List<CuratorFramework> clients = Lists.newArrayList();
         List<ExampleClient> examples = Lists.newArrayList();
 
@@ -30,5 +30,6 @@ public class LeaderSelectorExample {
             example.start();
         }
 
+        Thread.sleep(60*1000L);
     }
 }

@@ -8,6 +8,9 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListenerAdapter;
 
+/**
+ * LeaderSelectorListenerAdapter 实现了LeaderSelectorListener接口的stateChanged方法-帮助管理服务的连接状态
+ */
 public class ExampleClient extends LeaderSelectorListenerAdapter implements Closeable{
 
     private final String name;
@@ -30,6 +33,11 @@ public class ExampleClient extends LeaderSelectorListenerAdapter implements Clos
         leaderSelector.close();
     }
 
+    /**
+     * 获取到领导权执行此方法，方法执行完成后，释放领导权，然后所有进程再次竞争获取
+     * @param client
+     * @throws Exception
+     */
 	public void takeLeadership(CuratorFramework client) throws Exception {
         final int waitSeconds = (int)(5 * Math.random()) + 1;
         System.out.println(name + " is now the leader. Waiting " + waitSeconds + " seconds...");
