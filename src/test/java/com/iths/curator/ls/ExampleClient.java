@@ -44,11 +44,14 @@ public class ExampleClient extends LeaderSelectorListenerAdapter implements Clos
         System.out.println(name + " has been leader " + leaderCount.getAndIncrement() + " time(s) before.");
         try {
             Thread.sleep(TimeUnit.SECONDS.toMillis(waitSeconds));
-        } catch ( InterruptedException e ) {
-            System.err.println(name + " was interrupted." + e );
-            Thread.currentThread().interrupt();
         } finally {
             System.out.println(name + " relinquishing leadership.\n");
+            //无此下方法，则该进程释放领导权后，不参与竞争领导权，所以在所有进程执行完成一次此方法后，不再调用takeLeadership方法。
+            leaderSelector.autoRequeue();
         }
 	}
+
+	public void autoRequeue(){
+        leaderSelector.autoRequeue();
+    }
 }
