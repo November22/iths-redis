@@ -5,11 +5,16 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.framework.recipes.locks.InterProcessReadWriteLock;
+import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
+import org.apache.curator.framework.recipes.locks.Lease;
+import org.apache.curator.framework.recipes.shared.SharedCountReader;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +54,7 @@ public class CuratorLockTest {
     @Test
     public void testDistributeLock() throws Exception {
         CuratorLockTest curatorLockTest = new CuratorLockTest();
-         long start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         final InterProcessMutex mutex = new InterProcessMutex(client, "/curator/lock");
         for(int i=0;i<50;i++){
             Thread thread = new Thread(new Runnable() {
@@ -102,6 +107,50 @@ public class CuratorLockTest {
             }
         }
         Thread.sleep(55 * 1000L);
+    }
+
+
+    /**
+     * 买票系统场景，系统同时支持5个业务同时处理，后续业务等待。
+     * 适用于在分布式系统中，全局下，限量的访问方式。
+     */
+    @Test
+    public void testInterProcessSemaphoreV2() throws Exception {
+        InterProcessSemaphoreV2 semaphoreV2 =
+                new InterProcessSemaphoreV2(client,"/lock/semaphoreV2",5);
+        for(int i=0;i<50;i++){
+            threadPool.submit(new BuyTicketRunnable(semaphoreV2));
+        }
+        Thread.sleep(10 * 60 * 1000L);
+    }
+
+
+    /**
+     * 买票业务线程
+     */
+    class BuyTicketRunnable implements Runnable{
+
+        private InterProcessSemaphoreV2 semaphoreV2;
+
+        public BuyTicketRunnable(InterProcessSemaphoreV2 semaphoreV2) {
+            this.semaphoreV2 = semaphoreV2;
+        }
+
+        public void run() {
+            Lease acquire = null;
+            try {
+                acquire = semaphoreV2.acquire();
+                System.out.println("开始出票....");
+                Thread.sleep(10*1000L);
+                System.out.println("出票完成....");
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                if( acquire != null ) {
+                    semaphoreV2.returnLease(acquire);
+                }
+            }
+        }
     }
 
     /**
